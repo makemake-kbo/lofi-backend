@@ -1,12 +1,12 @@
 import logging
-from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse, JSONResponse
 import subprocess
 from fastapi.middleware.cors import CORSMiddleware
 from threading import Thread, Event
 import time
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI()
 
@@ -26,9 +26,10 @@ FILE_PATH = "./the-flower-called-nowhere.m4a"
 buffer = deque()
 buffer_event = Event()
 
-# Dictionary to keep track of listening time
+# Dictionary to keep track of listening time and points
 clients_listening_time = {}
-clients = set()
+clients_points = {}
+clients_last_update = {}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -73,22 +74,38 @@ async def startup_event():
 
 @app.get("/stream")
 async def stream_audio(request: Request):
-    client_ip = request.client.host
-    logging.info(f"Client connected: {client_ip}")
+    uuid = request.query_params.get("uuid")
+    if not uuid:
+        raise HTTPException(status_code=400, detail="UUID is required")
+
+    logging.info(f"Client connected: {uuid}")
 
     def generate():
         start_time = datetime.now()
+        clients_last_update[uuid] = start_time
         while True:
             if buffer:
                 data = buffer.popleft()
                 yield data
-                # Update listening time
+
+                # Update listening time and points
                 elapsed_time = datetime.now() - start_time
-                clients_listening_time[client_ip] = elapsed_time.total_seconds()
+                clients_listening_time[uuid] = elapsed_time.total_seconds()
+
+                # Check if 30 seconds have passed to update points
+                if datetime.now() - clients_last_update[uuid] >= timedelta(seconds=30):
+                    clients_points[uuid] = clients_points.get(uuid, 0) + 1
+                    clients_last_update[uuid] = datetime.now()
             else:
                 buffer_event.wait()
     
     return StreamingResponse(generate(), media_type="audio/mpeg")
+
+@app.get("/points")
+async def get_points(uuid: str):
+    if uuid not in clients_points:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return JSONResponse({"points": clients_points[uuid]})
 
 @app.get("/listening-times")
 async def get_listening_times():

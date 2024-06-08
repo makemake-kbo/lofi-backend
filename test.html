@@ -10,5 +10,41 @@
         <source src="http://localhost:8000/stream" type="audio/mp4">
         Your browser does not support the audio element.
     </audio>
+    <div>
+        Points: <span id="points">0</span>
+    </div>
+
+    <script>
+        // Generate or retrieve UUID from local storage
+        function getUUID() {
+            let uuid = localStorage.getItem('uuid');
+            if (!uuid) {
+                uuid = URL.createObjectURL(new Blob()).substring(9);
+                localStorage.setItem('uuid', uuid);
+            }
+            return uuid;
+        }
+
+        const uuid = getUUID();
+
+        // Update points display
+        function updatePoints() {
+            fetch(`http://localhost:8000/points?uuid=${uuid}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('points').innerText = data.points;
+                });
+        }
+
+        // Initial points fetch
+        updatePoints();
+
+        // Periodically update points display
+        setInterval(updatePoints, 5000);
+
+        // Update the audio source to include the UUID
+        document.querySelector('audio source').src = `http://localhost:8000/stream?uuid=${uuid}`;
+        document.querySelector('audio').load();
+    </script>
 </body>
 </html>
