@@ -7,6 +7,7 @@ from threading import Thread, Event
 import time
 from collections import deque
 from datetime import datetime, timedelta
+import os
 
 app = FastAPI()
 
@@ -20,7 +21,7 @@ app.add_middleware(
 
 # Constants
 CHUNK_SIZE = 1024
-FILE_PATH = "./the-flower-called-nowhere.m4a"
+AUDIO_DIR = "./"  # Directory containing audio files
 
 # Shared buffer and synchronization primitives
 buffer = deque()
@@ -34,23 +35,30 @@ clients_last_update = {}
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
+def get_audio_files(directory):
+    """Retrieve all audio files in the specified directory."""
+    audio_extensions = ('.mp3', '.m4a', '.wav', '.aac', '.opus')
+    return [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith(audio_extensions)]
+
 def audio_streamer():
     while True:
-        process = subprocess.Popen(
-            ["ffmpeg", "-re", "-i", FILE_PATH, "-f", "mp3", "-"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+        audio_files = get_audio_files(AUDIO_DIR)
+        for file_path in audio_files:
+            process = subprocess.Popen(
+                ["ffmpeg", "-re", "-i", file_path, "-f", "mp3", "-"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
 
-        while True:
-            data = process.stdout.read(CHUNK_SIZE)
-            if not data:
-                break
-            buffer.append(data)
-            if len(buffer) > 10 * CHUNK_SIZE:  # Limit buffer size to 10 chunks
-                buffer.popleft()
-            buffer_event.set()
-        process.terminate()
+            while True:
+                data = process.stdout.read(CHUNK_SIZE)
+                if not data:
+                    break
+                buffer.append(data)
+                if len(buffer) > 10 * CHUNK_SIZE:  # Limit buffer size to 10 chunks
+                    buffer.popleft()
+                buffer_event.set()
+            process.terminate()
 
 def client_streamer():
     while True:
