@@ -1,1 +1,4 @@
 __pycache__
+*.opus
+*.m4a
+*.mp3
