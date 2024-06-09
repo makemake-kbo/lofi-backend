@@ -13,6 +13,9 @@
     <div>
         Points: <span id="points">0</span>
     </div>
+    <div>
+        Now Playing: <span id="now-playing">Loading...</span>
+    </div>
 
     <script>
         // Generate or retrieve UUID from local storage
@@ -36,11 +39,25 @@
                 });
         }
 
-        // Initial points fetch
-        updatePoints();
+        // Update now playing display
+        function updateNowPlaying() {
+            fetch(`http://localhost:8000/now-playing`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('now-playing').innerText = `${data.title} by ${data.artist}`;
+                })
+                .catch(error => {
+                    document.getElementById('now-playing').innerText = "No song is currently playing";
+                });
+        }
 
-        // Periodically update points display
-        setInterval(updatePoints, 5000);
+        // Initial points and now playing fetch
+        updatePoints();
+        updateNowPlaying();
+
+        // Periodically update points and now playing display
+        setInterval(updatePoints, 15000);
+        setInterval(updateNowPlaying, 5000);
 
         // Update the audio source to include the UUID
         document.querySelector('audio source').src = `http://localhost:8000/stream?uuid=${uuid}`;

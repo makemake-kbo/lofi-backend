@@ -8,6 +8,7 @@ import time
 from collections import deque
 from datetime import datetime, timedelta
 import os
+from tinytag import TinyTag
 
 app = FastAPI()
 
@@ -21,7 +22,7 @@ app.add_middleware(
 
 # Constants
 CHUNK_SIZE = 1024
-AUDIO_DIR = "./"  # Directory containing audio files
+AUDIO_DIR = "./music"  # Directory containing audio files
 
 # Shared buffer and synchronization primitives
 buffer = deque()
@@ -32,6 +33,9 @@ clients_listening_time = {}
 clients_points = {}
 clients_last_update = {}
 
+# Track currently playing song
+current_song = None
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
@@ -40,10 +44,23 @@ def get_audio_files(directory):
     audio_extensions = ('.mp3', '.m4a', '.wav', '.aac', '.opus')
     return [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith(audio_extensions)]
 
+def get_metadata(file_path):
+    """Retrieve metadata for a given audio file."""
+    tag = TinyTag.get(file_path)
+    metadata = {
+        "title": str(tag.title),
+        "artist": str(tag.artist),
+        "album": str(tag.album),
+        "duration": int(tag.duration)
+    }
+    return metadata
+
 def audio_streamer():
+    global current_song
     while True:
         audio_files = get_audio_files(AUDIO_DIR)
         for file_path in audio_files:
+            current_song = get_metadata(file_path)
             process = subprocess.Popen(
                 ["ffmpeg", "-re", "-i", file_path, "-f", "mp3", "-"],
                 stdout=subprocess.PIPE,
@@ -118,6 +135,19 @@ async def get_points(uuid: str):
 @app.get("/listening-times")
 async def get_listening_times():
     return clients_listening_time
+
+@app.get("/metadata")
+async def get_metadata_endpoint():
+    audio_files = get_audio_files(AUDIO_DIR)
+    metadata_list = [get_metadata(file) for file in audio_files]
+    return JSONResponse(metadata_list)
+
+@app.get("/now-playing")
+async def now_playing():
+    if current_song:
+        return JSONResponse(current_song)
+    else:
+        raise HTTPException(status_code=404, detail="No song is currently playing")
 
 if __name__ == "__main__":
     import uvicorn
