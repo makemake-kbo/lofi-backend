@@ -3,3 +3,4 @@ __pycache__
 *.m4a
 *.mp3
 music
+.DS_STORE
