@@ -7,7 +7,7 @@
 </head>
 <body>
     <audio controls>
-        <source src="http://localhost:8000/stream" type="audio/mp4">
+        <source src="http://95.216.215.187:8000/stream" type="audio/mp4">
         Your browser does not support the audio element.
     </audio>
     <div>
@@ -32,7 +32,7 @@
 
         // Update points display
         function updatePoints() {
-            fetch(`http://localhost:8000/points?uuid=${uuid}`)
+            fetch(`http://95.216.215.187:8000/points?uuid=${uuid}`)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('points').innerText = data.points;
@@ -41,7 +41,7 @@
 
         // Update now playing display
         function updateNowPlaying() {
-            fetch(`http://localhost:8000/now-playing`)
+            fetch(`http://95.216.215.187:8000/now-playing`)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('now-playing').innerText = `${data.title} by ${data.artist}`;
@@ -60,7 +60,7 @@
         setInterval(updateNowPlaying, 5000);
 
         // Update the audio source to include the UUID
-        document.querySelector('audio source').src = `http://localhost:8000/stream?uuid=${uuid}`;
+        document.querySelector('audio source').src = `http://95.216.215.187:8000/stream?uuid=${uuid}`;
         document.querySelector('audio').load();
     </script>
 </body>
